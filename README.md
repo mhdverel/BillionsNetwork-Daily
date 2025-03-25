@@ -18,8 +18,8 @@ Skrip ini berfungsi untuk mengotomatisasi klaim daily reward di platform **Billi
 
 ### 1️⃣ **Clone Repository (Jika Perlu)**
 ```sh
- git clone https://github.com/username/billion-daily-reward.git
- cd billion-daily-reward
+ git clone https://github.com/isansut/BillionsNetwork-daily.git
+ cd BillionsNetwork-daily
 ```
 
 ### 2️⃣ **Install Dependencies**
