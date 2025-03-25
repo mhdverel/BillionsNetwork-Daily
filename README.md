@@ -33,7 +33,7 @@ Buat file `token.txt` dan masukkan session ID yang diperoleh dari website **Bill
 
 Contoh isi file `token.txt`:
 ```
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJCaWxsaW9ucy5OZXR3b3Jr...
+session_id=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJCaWxsaW9ucy5OZ...
 ```
 
 ### 4️⃣ **Menjalankan Skrip**
