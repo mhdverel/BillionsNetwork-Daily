@@ -6,34 +6,33 @@ const path = require("path");
 
 const tokenPath = path.join(__dirname, "token.txt");
 
-function readSessionToken() {
+function readSessionTokens() {
     try {
-        const data = fs.readFileSync(tokenPath, "utf8").trim();
-        const token = data.split("=")[1];
-        return token;
+        const data = fs.readFileSync(tokenPath, "utf8").trim().split("\n");
+        return data.map(line => line.split("=")[1].trim()).filter(Boolean);
     } catch (err) {
         console.error("❌ Gagal membaca file token.txt:", err.message);
-        return null;
+        return [];
     }
 }
 
-const SESSION_ID = readSessionToken();
-if (!SESSION_ID) {
-    console.log("⚠️ Token tidak ditemukan, pastikan token.txt sudah benar.");
+const SESSION_IDS = readSessionTokens();
+if (SESSION_IDS.length === 0) {
+    console.log("⚠️ Tidak ada token ditemukan, pastikan token.txt sudah benar.");
     process.exit(1);
 }
 
-const headers = {
+const headers = sessionId => ({
     "accept": "application/json, text/plain, */*",
-    "cookie": `session_id=${SESSION_ID}`,
+    "cookie": `session_id=${sessionId}`,
     "origin": "https://signup.billions.network",
     "referer": "https://signup.billions.network/",
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
-};
+});
 
 function showBanner() {
-    console.log("\n" + figlet.textSync("NT - Exhaust", { font: "Big" }));
-    console.log("🔥 Automasi Daily Reward by NT - Exhaust 🔥\n");
+    console.log("\n" + figlet.textSync("PEYENG", { font: "Big" }));
+    console.log("🔥 Auto Claim Daily Reward Billions Network 🔥\n");
 }
 
 function formatWaktu(utcTime) {
@@ -45,23 +44,17 @@ function formatSisaWaktu(ms) {
     let jam = Math.floor(totalSeconds / 3600);
     let menit = Math.floor((totalSeconds % 3600) / 60);
     let detik = totalSeconds % 60;
-    return `${jam} jam ${menit} menit ${detik} detik`;
+    return `${String(jam).padStart(2, '0')}:${String(menit).padStart(2, '0')}:${String(detik).padStart(2, '0')}`;
 }
 
-async function getUserStatus() {
+async function getUserStatus(sessionId) {
     try {
-        const response = await axios.get("https://signup-backend.billions.network/me", { headers });
+        const response = await axios.get("https://signup-backend.billions.network/me", { headers: headers(sessionId) });
         const data = response.data;
 
-        console.log(`👤 Nama: ${data.name}`);
-        console.log(`📩 Email: ${data.email}`);
-        console.log(`🆔 ID: ${data.id}`);
-        console.log(`🏆 Rank: ${data.rank}`);
-        console.log(`🔗 Referral Code: ${data.referralCode}`);
-        console.log(`⚡ Power: ${data.power}`);
-        console.log(`🎖 Level: ${data.level}`);
+        console.log(`👤 Wallet: ${data.name} | ID: ${data.id}`);
         console.log(`🔄 Next Daily Reward At: ${formatWaktu(data.nextDailyRewardAt)}`);
-
+        
         return data.nextDailyRewardAt;
     } catch (error) {
         console.error("❌ Gagal mendapatkan status user:", error.response?.data || error.message);
@@ -69,9 +62,9 @@ async function getUserStatus() {
     }
 }
 
-async function claimDailyReward() {
+async function claimDailyReward(sessionId) {
     try {
-        const response = await axios.post("https://signup-backend.billions.network/claim-daily-reward", {}, { headers });
+        const response = await axios.post("https://signup-backend.billions.network/claim-daily-reward", {}, { headers: headers(sessionId) });
 
         if (response.status === 200) {
             console.log(`✅ Berhasil klaim daily reward pada ${moment().tz("Asia/Jakarta").format("dddd, DD MMMM YYYY, HH:mm:ss [WIB]")}`);
@@ -83,9 +76,9 @@ async function claimDailyReward() {
     }
 }
 
-async function countdownAndClaim(nextClaimTime) {
+async function countdownAndClaim(sessionId, nextClaimTime) {
     let nextClaimTimestamp = moment(nextClaimTime).tz("Asia/Jakarta").valueOf();
-    console.log(`⏳ Menunggu hingga: ${formatWaktu(nextClaimTime)}...`);
+    console.log(`⏳ Menunggu klaim untuk wallet ${sessionId.slice(0, 6)}...`);
 
     const interval = setInterval(() => {
         let nowTimestamp = moment().tz("Asia/Jakarta").valueOf();
@@ -94,29 +87,30 @@ async function countdownAndClaim(nextClaimTime) {
         if (timeUntilClaim <= 0) {
             clearInterval(interval);
             console.log("\n🚀 Waktunya klaim! Mengirim permintaan...");
-            claimDailyReward().then(() => {
+            claimDailyReward(sessionId).then(() => {
                 console.log("\n🔄 Menunggu daily reward berikutnya...\n");
-                waitUntilNextClaim();
+                waitUntilNextClaim(sessionId);
             });
             return;
         }
 
         process.stdout.clearLine();
         process.stdout.cursorTo(0);
-        process.stdout.write(`⏳ ${formatSisaWaktu(timeUntilClaim)} lagi untuk claim daily`);
-    }, 1000);
+        process.stdout.write(`⏳ ${formatSisaWaktu(timeUntilClaim)} lagi untuk klaim wallet ${sessionId.slice(0, 6)}`);
+    }, 1000); // Update setiap detik
 }
 
-async function waitUntilNextClaim() {
+async function waitUntilNextClaim(sessionId) {
+    const nextRewardTime = await getUserStatus(sessionId);
+    if (!nextRewardTime) return;
+    countdownAndClaim(sessionId, nextRewardTime);
+}
+
+async function main() {
     showBanner();
-
-    while (true) {
-        const nextRewardTime = await getUserStatus();
-        if (!nextRewardTime) return;
-
-        countdownAndClaim(nextRewardTime);
-        await new Promise(resolve => setTimeout(resolve, 24 * 60 * 60 * 1000)); // Tunggu 24 jam sebelum loop ulang
+    for (const sessionId of SESSION_IDS) {
+        waitUntilNextClaim(sessionId);
     }
 }
 
-waitUntilNextClaim();
+main();
