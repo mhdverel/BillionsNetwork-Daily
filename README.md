@@ -29,7 +29,7 @@ session_id=another_token_here
 
 ### 4. Jalankan Script
 ```sh
-node index
+node main
 ```
 
 ## ⚠️ Catatan
